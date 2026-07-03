@@ -1,2 +1,7 @@
-package com.stockpilot.exception;public class InvalidInputException {
+package com.stockpilot.exception;
+
+public class InvalidInputException extends RuntimeException {
+    public InvalidInputException(String message) {
+        super(message);
+    }
 }
