@@ -1,10 +1,14 @@
 package com.stockpilot.repository;
 
 import com.stockpilot.exception.DataAccessException;
+import com.stockpilot.model.Customer;
 import com.stockpilot.model.Order;
 import com.stockpilot.model.OrderItem;
+import com.stockpilot.model.Product;
 import com.stockpilot.util.DatabaseConnection;
+
 import java.sql.*;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -74,8 +78,67 @@ public class OrderRepository implements Repository<Order, Integer> {
     }
     @Override
     public Optional<Order> findById(Integer id) { return Optional.empty(); }
+
     @Override
-    public List<Order> findAll() { return List.of(); }
+    public List<Order> findAll() {
+        List<Order> orders = new ArrayList<>();
+        String sql = "SELECT o.*, c.name AS customer_name, c.email AS customer_email, c.phone AS customer_phone " +
+                "FROM orders o JOIN customers c ON o.customer_id = c.id";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                Customer customer = new Customer(
+                        rs.getString("customer_name"),
+                        rs.getString("customer_email"),
+                        rs.getString("customer_phone")
+                );
+                customer.setId(rs.getInt("customer_id"));
+
+                Order order = new Order(customer);
+                order.setId(rs.getInt("id"));
+                order.setOrderDate(rs.getTimestamp("order_date").toLocalDateTime());
+                order.setDiscountAmount(rs.getBigDecimal("discount_amount"));
+                order.setFinalAmount(rs.getBigDecimal("final_amount"));
+                loadOrderItems(conn, order);
+                orders.add(order);
+            }
+        } catch (SQLException e) {
+            throw new com.stockpilot.exception.DataAccessException("Lỗi khi tải toàn bộ danh sách đơn hàng để làm báo cáo", e);
+        }
+        return orders;
+    }
+    private void loadOrderItems(Connection conn, Order order) throws SQLException {
+        String sql = "SELECT oi.*, p.sku, p.name AS product_name, p.category, p.stock_quantity " +
+                "FROM order_items oi JOIN products p ON oi.product_id = p.id WHERE oi.order_id = ?";
+
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, order.getId());
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Product product = new Product(
+                            rs.getString("sku"),
+                            rs.getString("product_name"),
+                            rs.getString("category"),
+                            rs.getBigDecimal("price"),
+                            rs.getInt("stock_quantity")
+                    );
+                    product.setId(rs.getInt("product_id"));
+
+                    OrderItem item = new OrderItem(
+                            rs.getInt("id"),
+                            rs.getInt("order_id"),
+                            product,
+                            rs.getInt("quantity"),
+                            rs.getBigDecimal("price")
+                    );
+                    order.addItem(item);
+                }
+            }
+        }
+    }
     @Override
     public void update(Order order) {}
     @Override

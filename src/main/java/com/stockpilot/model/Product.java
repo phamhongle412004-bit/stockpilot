@@ -11,7 +11,7 @@ public class Product {
     private String category;
     private BigDecimal price;
     private int stockQuantity;
-    private static final String SKU_REGEX = "^[A-Z]{3}-\\d{4}$";
+    private static final String SKU_REGEX = "^[A-Z]{2}\\d{3}$";
     private static final Pattern SKU_PATTERN = Pattern.compile(SKU_REGEX);
     public Product(String sku, String name, String category, BigDecimal price, int stockQuantity) {
         setSku(sku);
