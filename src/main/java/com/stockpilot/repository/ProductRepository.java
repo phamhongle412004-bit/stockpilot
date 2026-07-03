@@ -11,7 +11,7 @@ import java.util.Optional;
 public class ProductRepository implements Repository<Product, Integer> {
     @Override
     public void save(Product product) {
-        String sql = "INSERT INTO products (sku, name, category, price, stock_quantity) VALUES (?, ?, ?, ?, ?)";
+        String sql = "MERGE INTO products (sku, name, category, price, stock_quantity) VALUES (?, ?, ?, ?, ?)";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
