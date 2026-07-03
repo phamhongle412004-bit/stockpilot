@@ -1,2 +1,7 @@
-package com.stockpilot.model;public class DiscountPolicy {
+package com.stockpilot.model;
+
+import java.math.BigDecimal;
+
+public interface DiscountPolicy {
+    BigDecimal calculateDiscount(Order order);
 }
