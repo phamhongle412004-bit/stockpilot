@@ -1,0 +1,21 @@
+2026-07-04 17:18:49 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Table "ORDERS" not found (this database is empty); SQL statement:
+SELECT o.*, c.name AS customer_name, c.email AS customer_email, c.phone AS customer_phone FROM orders o JOIN customers c ON o.customer_id = c.id [42104-220]
+2026-07-04 17:23:41 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Table "ORDERS" not found (this database is empty); SQL statement:
+SELECT o.*, c.name AS customer_name, c.email AS customer_email, c.phone AS customer_phone FROM orders o JOIN customers c ON o.customer_id = c.id [42104-220]
+2026-07-04 17:23:49 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Table "ORDERS" not found (this database is empty); SQL statement:
+SELECT o.*, c.name AS customer_name, c.email AS customer_email, c.phone AS customer_phone FROM orders o JOIN customers c ON o.customer_id = c.id [42104-220]
+2026-07-04 17:28:41 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Table "ORDERS" not found (this database is empty); SQL statement:
+SELECT o.*, c.name AS customer_name, c.email AS customer_email, c.phone AS customer_phone FROM orders o JOIN customers c ON o.customer_id = c.id [42104-220]
+2026-07-04 17:28:49 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Table "ORDERS" not found (this database is empty); SQL statement:
+SELECT o.*, c.name AS customer_name, c.email AS customer_email, c.phone AS customer_phone FROM orders o JOIN customers c ON o.customer_id = c.id [42104-220]
+2026-07-04 17:33:41 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Table "ORDERS" not found (this database is empty); SQL statement:
+SELECT o.*, c.name AS customer_name, c.email AS customer_email, c.phone AS customer_phone FROM orders o JOIN customers c ON o.customer_id = c.id [42104-220]
+2026-07-04 17:33:49 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Table "ORDERS" not found (this database is empty); SQL statement:
+SELECT o.*, c.name AS customer_name, c.email AS customer_email, c.phone AS customer_phone FROM orders o JOIN customers c ON o.customer_id = c.id [42104-220]
