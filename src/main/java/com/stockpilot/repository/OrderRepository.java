@@ -13,49 +13,63 @@ import java.util.List;
 import java.util.Optional;
 
 public class OrderRepository implements Repository<Order, Integer> {
+
     @Override
     public void save(Order order) {
         String insertOrderSql = "INSERT INTO orders (customer_id, total_amount, discount_amount, final_amount) VALUES (?, ?, ?, ?)";
         String insertItemSql = "INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)";
-        String updateStockSql = "UPDATE products SET stock_quantity = stock_quantity - ? WHERE id = ?";
+        String updateStockSql = "UPDATE products SET stock_quantity = stock_quantity - ? WHERE sku = ?";
 
         Connection conn = null;
         try {
             conn = DatabaseConnection.getConnection();
             conn.setAutoCommit(false);
-
             try (PreparedStatement orderStmt = conn.prepareStatement(insertOrderSql, Statement.RETURN_GENERATED_KEYS)) {
-                orderStmt.setInt(1, order.getCustomer().getId());
+                int customerId = (order.getCustomer().getId() <= 0) ? 1 : order.getCustomer().getId();
+
+                orderStmt.setInt(1, customerId);
                 orderStmt.setBigDecimal(2, order.getTotalAmount());
                 orderStmt.setBigDecimal(3, order.getDiscountAmount());
                 orderStmt.setBigDecimal(4, order.getFinalAmount());
                 orderStmt.executeUpdate();
+
                 try (ResultSet generatedKeys = orderStmt.getGeneratedKeys()) {
                     if (generatedKeys.next()) {
                         order.setId(generatedKeys.getInt(1));
                     }
                 }
             }
-
             try (PreparedStatement itemStmt = conn.prepareStatement(insertItemSql);
                  PreparedStatement stockStmt = conn.prepareStatement(updateStockSql)) {
 
                 for (OrderItem item : order.getItems()) {
+                    Product prod = item.getProduct();
+                    int actualProductId = prod.getId();
+                    if (actualProductId <= 0) {
+                        String queryIdSql = "SELECT id FROM products WHERE sku = ?";
+                        try (PreparedStatement ps = conn.prepareStatement(queryIdSql)) {
+                            ps.setString(1, prod.getSku());
+                            try (ResultSet rs = ps.executeQuery()) {
+                                if (rs.next()) {
+                                    actualProductId = rs.getInt("id");
+                                }
+                            }
+                        }
+                    }
                     itemStmt.setInt(1, order.getId());
-                    itemStmt.setInt(2, item.getProduct().getId());
+                    itemStmt.setInt(2, actualProductId);
                     itemStmt.setInt(3, item.getQuantity());
                     itemStmt.setBigDecimal(4, item.getPrice());
                     itemStmt.addBatch();
 
                     stockStmt.setInt(1, item.getQuantity());
-                    stockStmt.setInt(2, item.getProduct().getId());
+                    stockStmt.setString(2, prod.getSku());
                     stockStmt.addBatch();
                 }
                 itemStmt.executeBatch();
                 stockStmt.executeBatch();
             }
             conn.commit();
-
         } catch (SQLException e) {
             if (conn != null) {
                 try {
@@ -68,7 +82,6 @@ public class OrderRepository implements Repository<Order, Integer> {
         } finally {
             if (conn != null) {
                 try {
-                    conn.setAutoCommit(true);
                     conn.close();
                 } catch (SQLException e) {
                     System.err.println("Không thể đóng kết nối database: " + e.getMessage());
@@ -106,10 +119,11 @@ public class OrderRepository implements Repository<Order, Integer> {
                 orders.add(order);
             }
         } catch (SQLException e) {
-            throw new com.stockpilot.exception.DataAccessException("Lỗi khi tải toàn bộ danh sách đơn hàng để làm báo cáo", e);
+            throw new DataAccessException("Lỗi khi tải toàn bộ danh sách đơn hàng để làm báo cáo", e);
         }
         return orders;
     }
+
     private void loadOrderItems(Connection conn, Order order) throws SQLException {
         String sql = "SELECT oi.*, p.sku, p.name AS product_name, p.category, p.stock_quantity " +
                 "FROM order_items oi JOIN products p ON oi.product_id = p.id WHERE oi.order_id = ?";
@@ -139,8 +153,10 @@ public class OrderRepository implements Repository<Order, Integer> {
             }
         }
     }
+
     @Override
     public void update(Order order) {}
+
     @Override
     public void deleteById(Integer id) {}
 }

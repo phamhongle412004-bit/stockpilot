@@ -85,11 +85,21 @@ public class FileService {
             writer.write("--------------------------------------------------\n");
 
             for (OrderItem item : order.getItems()) {
+                if (item == null || item.getProduct() == null) continue;
+
+                String prodName = item.getProduct().getName();
+                if (prodName == null) prodName = "San pham";
+
+                String displayName = prodName.length() > 16 ? prodName.substring(0, 14) + ".." : prodName;
+
+                BigDecimal itemPrice = item.getPrice() != null ? item.getPrice() : BigDecimal.ZERO;
+                BigDecimal itemTotal = itemPrice.multiply(new BigDecimal(item.getQuantity()));
+
                 writer.write(String.format("%-10s %-18s %-5d %-12s\n",
                         item.getProduct().getSku(),
-                        item.getProduct().getName().length() > 16 ? item.getProduct().getName().substring(0, 14) + ".." : item.getProduct().getName(),
+                        displayName,
                         item.getQuantity(),
-                        item.getPrice().multiply(new BigDecimal(item.getQuantity())) + "đ"
+                        itemTotal + "đ"
                 ));
             }
 

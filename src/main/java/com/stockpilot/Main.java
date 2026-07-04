@@ -3,9 +3,7 @@ package com.stockpilot;
 import com.stockpilot.exception.InsufficientStockException;
 import com.stockpilot.exception.InvalidInputException;
 import com.stockpilot.model.*;
-import com.stockpilot.service.OrderService;
-import com.stockpilot.service.ReportService;
-import com.stockpilot.service.FileService;
+import com.stockpilot.service.*;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
@@ -19,13 +17,17 @@ public class Main {
             org.h2.tools.Server.createWebServer("-web", "-webAllowOthers", "-webPort", "8082").start();
             System.out.println(" H2 Console đã chạy tại: http://localhost:8082");
         } catch (Exception e) {
-            System.out.println("Không thể khởi động H2 Console (Có thể nó đang chạy ẩn rồi): " + e.getMessage());
+            System.out.println("Không thể khởi động H2 Console: " + e.getMessage());
         }
+
         OrderService orderService = new OrderService();
         ReportService reportService = new ReportService();
         FileService fileService = new FileService();
-        Scanner scanner = new Scanner(System.in);
+        FlashSaleService flashSaleService = new FlashSaleService();
+        BackgroundScheduler backgroundScheduler = new BackgroundScheduler();
+        backgroundScheduler.startAutoExportTask();
 
+        Scanner scanner = new Scanner(System.in);
         Customer mockCustomer = new Customer("Phạm Hồng Lê", "phl@gmail.com", "0912345678");
         mockCustomer.setId(1);
 
@@ -33,11 +35,12 @@ public class Main {
 
         while (true) {
             System.out.println("\n--- MENU CHỨC NĂNG ---");
-            System.out.println("1. Đặt hàng & Transaction ");
-            System.out.println("2. Xem Báo cáo Doanh thu & Phân tích Stream ");
-            System.out.println("3. Nhập danh mục sản phẩm từ file CSV ");
-            System.out.println("4. Thoát chương trình");
-            System.out.print("Chọn chức năng (1-4): ");
+            System.out.println("1. Đặt hàng & Transaction");
+            System.out.println("2. Xem Báo cáo Doanh thu & Phân tích Stream");
+            System.out.println("3. Nhập danh mục sản phẩm từ file CSV");
+            System.out.println("4. Giả lập Flash Sale đồng thời");
+            System.out.println("5. Thoát chương trình");
+            System.out.print("Chọn chức năng (1-5): ");
 
             String choice = scanner.nextLine();
             switch (choice) {
@@ -49,57 +52,60 @@ public class Main {
                     int qty = Integer.parseInt(scanner.nextLine());
                     Map<String, Integer> cart = new HashMap<>();
                     cart.put(sku, qty);
-                    DiscountPolicy discountPolicy = (ord) -> BigDecimal.ZERO;
                     try {
-                        System.out.println("Đang thực hiện checkout và lưu database qua Transaction...");
-                        Order order = orderService.checkout(mockCustomer, cart, discountPolicy);
-                        System.out.println("Đặt hàng THÀNH CÔNG!");
-                        System.out.println(order.toString());
+                        Order order = orderService.checkout(mockCustomer, cart, ord -> BigDecimal.ZERO);
+                        System.out.println("Đặt hàng THÀNH CÔNG!\n" + order);
                         fileService.exportInvoice(order);
-
-                    } catch (InsufficientStockException e) {
-                        System.out.println("LỖI NGHIỆP VỤ: " + e.getMessage());
-                        System.out.println("-> Hệ thống đã tự động ROLLBACK, không trừ kho lỗi.");
-                    } catch (InvalidInputException e) {
-                        System.out.println("LỖI DỮ LIỆU: " + e.getMessage());
                     } catch (Exception e) {
-                        System.out.println("LỖI HỆ THỐNG: " + e.getMessage());
+                        System.out.println("LỖI: " + e.getMessage());
                     }
                     break;
 
                 case "2":
-                    System.out.println("\n--- BÁO CÁO DOANH THU & PHÂN TÍCH ---");
                     try {
                         java.time.LocalDateTime end = java.time.LocalDateTime.now();
                         java.time.LocalDateTime start = end.minusMonths(1);
-
                         BigDecimal totalRevenue = reportService.calculateTotalRevenue(start, end);
                         long totalOrders = reportService.getTotalOrdersCount(start, end);
                         String categoryStats = reportService.getRevenueByCategory().toString();
 
-                        System.out.println("1. Tổng doanh thu hệ thống (1 tháng qua): " + totalRevenue + " VND");
-                        System.out.println("2. Tổng số đơn hàng (1 tháng qua): " + totalOrders);
-                        System.out.println("3. Doanh thu theo danh mục sản phẩm: " + categoryStats);
-                        System.out.println("4. Top sản phẩm bán chạy: " + reportService.getTopSellingProducts(3));
-                        fileService.exportSalesReport(start, end, totalRevenue, totalOrders, categoryStats);
+                        System.out.println("1. Tổng doanh thu hệ thống: " + totalRevenue + " VND");
+                        System.out.println("2. Tổng số đơn hàng: " + totalOrders);
+                        System.out.println("3. Doanh thu theo danh mục: " + categoryStats);
 
+                        fileService.exportSalesReport(start, end, totalRevenue, totalOrders, categoryStats);
                     } catch (Exception e) {
-                        System.out.println(" Không thể tải báo cáo. Hãy đảm bảo Database đã có dữ liệu đơn hàng: " + e.getMessage());
+                        System.out.println("Không thể tải báo cáo: " + e.getMessage());
                     }
                     break;
 
-                case "3": // Case mới cho F5 xử lý Import dữ liệu
+                case "3":
                     System.out.println("\n--- TIẾN TRÌNH IMPORT DANH MỤC TỪ FILE CSV ---");
                     System.out.print("Nhập tên file hoặc đường dẫn file CSV (Ví dụ: products.csv): ");
                     String pathCsv = scanner.nextLine();
-                    try {
-                        fileService.importProductsFromCsv(pathCsv);
-                    } catch (Exception e) {
-                        System.out.println(" Lỗi tiến trình import dữ liệu: " + e.getMessage());
-                    }
+                    try { fileService.importProductsFromCsv(pathCsv); } catch (Exception e) { System.out.println("❌ Lỗi: " + e.getMessage()); }
                     break;
 
                 case "4":
+                    System.out.println("\n--- GIẢ LẬP KỊCH BẢN TRANH CHẤP CONCURRENCY ---");
+                    System.out.println("Sản phẩm thử nghiệm: 'SP004' (đang có tồn kho giới hạn là 10 sản phẩm)");
+                    System.out.println("Hệ thống sẽ tung ra 20 yêu cầu mua hàng đồng thời!");
+                    System.out.println("1. Chạy kịch bản UNSAFE (Không đồng bộ -> Gây lỗi bán lố kho)");
+                    System.out.println("2. Chạy kịch bản SAFE (Có synchronized -> Đảm bảo an toàn kho)");
+                    System.out.print("Chọn phương án chạy (1-2): ");
+                    String subChoice = scanner.nextLine();
+                    if ("1".equals(subChoice)) {
+                        flashSaleService.runUnsafeFlashSale("SP004", 20);
+                    } else if ("2".equals(subChoice)) {
+                        flashSaleService.runSafeFlashSale("SP004", 20);
+                    } else {
+                        System.out.println("Lựa chọn không hợp lệ!");
+                    }
+                    break;
+
+                case "5":
+                    System.out.println("Đang tắt hệ thống...");
+                    backgroundScheduler.stopScheduler();
                     System.out.println("Tạm biệt!");
                     System.exit(0);
                     break;
